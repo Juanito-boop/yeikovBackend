@@ -1,65 +1,79 @@
 import { AppDataSource } from '../database/data-source';
-import { School } from '../entities/School';
 import { User } from '../entities/User';
-import { Plan } from '../entities/Plan';
+import { School } from '../entities/School';
+import { PlanMejora } from '../entities/PlanMejora';
 import { RoleType } from '../entities/Role';
-import { PlanAsignacionService } from './planAsignacion.service';
-import { DocenteService } from './docente.service';
 
-export class PrincipalService {
-  private schoolRepo = AppDataSource.getRepository(School);
+export class DirectorService {
   private userRepo = AppDataSource.getRepository(User);
-  private planRepo = AppDataSource.getRepository(Plan);
-  private docenteService = new DocenteService();
-  private planAsignacion = new PlanAsignacionService();
+  private schoolRepo = AppDataSource.getRepository(School);
+  private planRepo = AppDataSource.getRepository(PlanMejora);
 
-  // 🔹 Cantidad total de escuelas
-  async countSchools(): Promise<number> {
-    return this.schoolRepo.count();
-  }
-
-  // 🔹 Cantidad de usuarios con rol DOCENTE
-  async countDocenteUsers(): Promise<number> {
-    return this.userRepo
-      .createQueryBuilder('user')
-      .innerJoin('user.role', 'role')
-      .where('role.nombre = :nombre', { nombre: RoleType.DOCENTE })
-      .getCount();
-  }
-
-  // 🔹 Cantidad total de planes asignados a docentes
-  async countPlanesByDocentes(): Promise<number> {
-    return this.planRepo
-      .createQueryBuilder('plan')
-      .innerJoin('plan.user', 'user')
-      .innerJoin('user.role', 'role')
-      .where('role.nombre = :nombre', { nombre: RoleType.DOCENTE })
-      .getCount();
-  }
-
-  // 🔹 Cantidad de planes por escuela (solo docentes)
-  async countPlanesBySchoolForDocentes(): Promise<
-    { schoolName: string; totalPlanes: number }[]
-  > {
-    const result = await this.planRepo
-      .createQueryBuilder('plan')
-      .innerJoin('plan.user', 'user')
-      .innerJoin('user.role', 'role')
-      .innerJoin('user.school', 'school')
-      .where('role.nombre = :nombre', { nombre: RoleType.DOCENTE })
-      .select('school.nombre', 'schoolName')
-      .addSelect('COUNT(plan.id)', 'totalPlanes')
-      .groupBy('school.id')
-      .addGroupBy('school.nombre')
-      .getRawMany();
-
-    return result;
-  }
-
-  // 🔹 Obtener todas las escuelas registradas
-  async getAllSchools(): Promise<School[]> {
-    return this.schoolRepo.find({
-      relations: ['users'], // opcional, solo si necesitas los usuarios asociados
+  async getCounts() {
+    const totalSchools = await this.schoolRepo.count();
+    const totalDocentes = await this.userRepo.count({
+      where: { role: { nombre: RoleType.DOCENTE } },
     });
+    const totalPlanes = await this.planRepo.count();
+
+    // Obtener docentes con su escuela
+    const docentes = await this.userRepo.find({
+      where: { role: { nombre: RoleType.DOCENTE } },
+      relations: ['school'],
+    });
+
+    // Obtener planes con su docente y escuela
+    const planes = await this.planRepo.find({
+      relations: ['docente', 'docente.school'],
+    });
+
+    const planesPorEscuela: {
+      schoolName: string;
+      totalPlanes: number;
+      docentes: number;
+      planesCompletados: number;
+      calidad: number;
+    }[] = [];
+
+    const stats: Record<string, { docentes: number; totalPlanes: number; completados: number }> = {};
+
+    for (const docente of docentes) {
+      const escuela = docente.school?.nombre || 'Sin asignar';
+      if (!stats[escuela]) {
+        stats[escuela] = { docentes: 0, totalPlanes: 0, completados: 0 };
+      }
+      stats[escuela].docentes += 1;
+    }
+
+    for (const plan of planes) {
+      const escuela = plan.docente?.school?.nombre || 'Sin asignar';
+      if (!stats[escuela]) {
+        stats[escuela] = { docentes: 0, totalPlanes: 0, completados: 0 };
+      }
+      stats[escuela].totalPlanes += 1;
+
+      if (plan.estado === 'Cerrado' || plan.estado === 'Completado') {
+        stats[escuela].completados += 1;
+      }
+    }
+
+    for (const [schoolName, data] of Object.entries(stats)) {
+      planesPorEscuela.push({
+        schoolName,
+        totalPlanes: data.totalPlanes,
+        docentes: data.docentes,
+        planesCompletados: data.completados,
+        calidad:
+          data.totalPlanes > 0
+            ? Number(((data.completados / data.totalPlanes) * 100).toFixed(2))
+            : 0,
+      });
+    }
+    return {
+      schools: totalSchools,
+      docentes: totalDocentes,
+      planes: totalPlanes,
+      planesPorEscuela,
+    };
   }
 }

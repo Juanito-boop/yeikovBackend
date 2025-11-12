@@ -4,6 +4,7 @@ import { LoginHistory } from './LoginHistory';
 import { Notification } from './Notification';
 import { School } from './School';
 import { Plan } from './Plan';
+import { Incidencia } from './incidencias';
 
 @Entity('users')
 export class User {
@@ -44,6 +45,9 @@ export class User {
 
   @OneToMany(() => Notification, notification => notification.user)
   notifications: Notification[];
+
+  @OneToMany(() => Incidencia, incidencia => incidencia.docente)
+  incidencias: Incidencia[];
 
   @Column({ default: true })
   activo: boolean;

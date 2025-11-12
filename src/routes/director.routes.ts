@@ -1,11 +1,10 @@
 import { Router } from 'express';
-import { DirectorController } from '../controllers/director.controller';
 import { authenticate } from '../middleware/auth.middleware';
+import { DirectorController } from '../controllers/director.controller';
 
 const router = Router();
-const directorController = new DirectorController();
+const controller = new DirectorController();
 
-// Returns counts: number of schools and number of docente users
-router.get('/counts', authenticate, (req, res) => directorController.getCounts(req, res));
+router.get('/counts', authenticate, (req, res) => controller.getCounts(req, res));
 
 export default router;

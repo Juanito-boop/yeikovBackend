@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
 import { SchoolService } from '../services/school.service';
-import { PrincipalService } from '../services/director.service';
+import { DirectorService } from '../services/director.service';
 
 const schoolService = new SchoolService();
-const principalService = new PrincipalService();
+const directorService = new DirectorService();
 
 export class SchoolController {
   /**
@@ -45,7 +45,7 @@ export class SchoolController {
    */
   static async getPlanesPorEscuela(req: Request, res: Response): Promise<void> {
     try {
-      const data = await principalService.countPlanesBySchoolForDocentes();
+      const data = await directorService.getCounts();
       res.json(data);
     } catch (error) {
       res.status(500).json({ error: 'Error al contar planes por escuela' });
