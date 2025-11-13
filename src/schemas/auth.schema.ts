@@ -1,12 +1,21 @@
 import { z } from 'zod';
 
+const ALLOWED_DOMAINS = ['usantoto.edu.co', 'ustatunja.edu.co'];
+
+const validateInstitutionalEmail = (email: string) => {
+  const domain = email.split('@')[1];
+  return ALLOWED_DOMAINS.includes(domain);
+};
+
 export const loginSchema = z.object({
   email: z.email('Email inválido'),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres')
 });
 
 export const registerSchema = z.object({
-  email: z.email('Email inválido'),
+  email: z.email('Email inválido').refine(validateInstitutionalEmail, {
+    message: `Solo se permiten correos institucionales (${ALLOWED_DOMAINS.join(', ')})`
+  }),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   apellido: z.string().min(2, 'El apellido debe tener al menos 2 caracteres'),
