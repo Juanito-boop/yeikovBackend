@@ -9,7 +9,8 @@ export class AuthController {
   async register(req: Request, res: Response): Promise<void> {
     try {
       const data: RegisterInput = req.body;
-      const result = await authService.register(data);
+      const sendEmail = req.body.sendWelcomeEmail !== false; // Por defecto true
+      const result = await authService.register(data, sendEmail);
 
       res.status(201).json({
         message: 'Usuario registrado exitosamente',
@@ -63,6 +64,22 @@ export class AuthController {
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  }
+
+  async changePassword(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user?.userId) {
+        res.status(401).json({ error: 'No autenticado' });
+        return;
+      }
+
+      const data = req.body;
+      const result = await authService.changePassword(req.user.userId, data);
+
+      res.status(200).json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
     }
   }
 }

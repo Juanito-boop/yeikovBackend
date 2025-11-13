@@ -46,6 +46,13 @@ export class PlanService {
     return this.planRepo.find({ relations: ['docente', 'acciones', 'aprobaciones'] });
   }
 
+  async listarPlanesPorDocente(docenteId: string): Promise<PlanMejora[]> {
+    return this.planRepo.find({
+      where: { docente: { id: docenteId } },
+      relations: ['docente', 'incidencia', 'acciones', 'acciones.evidencias', 'aprobaciones']
+    });
+  }
+
   async enviarARevision(id: string): Promise<PlanMejora> {
     const plan = await this.planRepo.findOne({ where: { id } });
     if (!plan) throw new Error('Plan no encontrado');

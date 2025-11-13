@@ -24,6 +24,19 @@ export class PlanController {
     }
   }
 
+  async listarMisPlanes(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: 'No autenticado' });
+        return;
+      }
+      const planes = await planService.listarPlanesPorDocente(req.user.userId);
+      res.status(200).json({ planes });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
   async obtener(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { id } = req.params;
