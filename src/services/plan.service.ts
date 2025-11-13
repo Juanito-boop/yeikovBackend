@@ -17,7 +17,10 @@ export class PlanService {
     docenteId: string;
     incidenciaId?: string;
   }): Promise<PlanMejora> {
-    const docente = await this.userRepo.findOne({ where: { id: data.docenteId } });
+    const docente = await this.userRepo.findOne({
+      where: { id: data.docenteId },
+      relations: ['school']
+    });
     if (!docente) throw new Error('Docente no encontrado');
 
     const incidencia = data.incidenciaId
@@ -32,7 +35,13 @@ export class PlanService {
       estado: 'Borrador',
     });
 
-    return await this.planRepo.save(plan);
+    const savedPlan = await this.planRepo.save(plan);
+
+    // Retornar el plan con las relaciones cargadas
+    return await this.planRepo.findOne({
+      where: { id: savedPlan.id },
+      relations: ['docente', 'docente.school', 'incidencia']
+    }) as PlanMejora;
   }
 
   async obtenerPorId(id: string): Promise<PlanMejora | null> {
@@ -43,7 +52,10 @@ export class PlanService {
   }
 
   async listarPlanes(): Promise<PlanMejora[]> {
-    return this.planRepo.find({ relations: ['docente', 'acciones', 'aprobaciones'] });
+    return this.planRepo.find({
+      relations: ['docente', 'docente.school', 'acciones', 'aprobaciones'],
+      order: { createdAt: 'DESC' }
+    });
   }
 
   async listarPlanesPorDocente(docenteId: string): Promise<PlanMejora[]> {

@@ -13,7 +13,7 @@ export class SchoolController {
   static async getAllSchools(req: Request, res: Response): Promise<void> {
     try {
       const schools = await schoolService.getAllSchools();
-      res.json(schools);
+      res.json({ schools });
     } catch (error) {
       res.status(500).json({ error: 'Error al obtener las escuelas' });
     }
@@ -36,6 +36,68 @@ export class SchoolController {
       res.json(school);
     } catch (error) {
       res.status(500).json({ error: 'Error al obtener la escuela' });
+    }
+  }
+
+  /**
+   * POST /schools
+   * Crea una nueva facultad.
+   */
+  static async createSchool(req: Request, res: Response): Promise<void> {
+    try {
+      const { nombre } = req.body;
+
+      if (!nombre || nombre.trim() === '') {
+        res.status(400).json({ error: 'El nombre de la facultad es requerido' });
+        return;
+      }
+
+      const school = await schoolService.createSchool(nombre.trim());
+      res.status(201).json({
+        message: 'Facultad creada exitosamente',
+        ...school,
+        cantidadDocentes: 0
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || 'Error al crear la escuela' });
+    }
+  }
+
+  /**
+   * PUT /schools/:id
+   * Actualiza una facultad.
+   */
+  static async updateSchool(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { nombre } = req.body;
+
+      if (!nombre || nombre.trim() === '') {
+        res.status(400).json({ error: 'El nombre de la facultad es requerido' });
+        return;
+      }
+
+      const school = await schoolService.updateSchool(id, nombre.trim());
+      res.json({
+        message: 'Facultad actualizada exitosamente',
+        school
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || 'Error al actualizar la escuela' });
+    }
+  }
+
+  /**
+   * DELETE /schools/:id
+   * Elimina una facultad.
+   */
+  static async deleteSchool(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      await schoolService.deleteSchool(id);
+      res.json({ message: 'Facultad eliminada exitosamente' });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || 'Error al eliminar la escuela' });
     }
   }
 

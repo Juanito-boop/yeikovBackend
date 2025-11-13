@@ -1,8 +1,9 @@
 import * as nodemailer from 'nodemailer';
+import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 
 export const createEmailTransporter = () => {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'localhost',
+  const options: SMTPTransport.Options = {
+    host: process.env.SMTP_HOST || '127.0.0.1',
     port: parseInt(process.env.SMTP_PORT || '1025'),
     secure: false,
     auth: process.env.SMTP_USER ? {
@@ -12,7 +13,9 @@ export const createEmailTransporter = () => {
     tls: {
       rejectUnauthorized: false
     }
-  });
+  };
+
+  return nodemailer.createTransport(options);
 };
 
 export const emailConfig = {

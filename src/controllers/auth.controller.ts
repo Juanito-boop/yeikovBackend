@@ -2,14 +2,44 @@ import { Request, Response } from 'express';
 import { AuthService } from '../services/auth.service';
 import { LoginInput, RegisterInput } from '../schemas/auth.schema';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { AppDataSource } from '../database/data-source';
+import { Role, RoleType } from '../entities/Role';
 
 const authService = new AuthService();
+const roleRepository = AppDataSource.getRepository(Role);
 
 export class AuthController {
   async register(req: Request, res: Response): Promise<void> {
     try {
-      const data: RegisterInput = req.body;
+      let data: RegisterInput = req.body;
       const sendEmail = req.body.sendWelcomeEmail !== false; // Por defecto true
+
+      // Si se envió 'role' como string, convertirlo a roleId
+      if (req.body.role && !data.roleId) {
+        const roleMap: Record<string, RoleType> = {
+          'docente': RoleType.DOCENTE,
+          'admin': RoleType.ADMIN,
+          'administrador': RoleType.ADMIN,
+          'decano': RoleType.DECANO,
+          'director': RoleType.DIRECTOR,
+          'director_academico': RoleType.DIRECTOR
+        };
+
+        const roleName = roleMap[req.body.role.toLowerCase()];
+        if (!roleName) {
+          res.status(400).json({ error: 'Rol inválido' });
+          return;
+        }
+
+        const role = await roleRepository.findOne({ where: { nombre: roleName } });
+        if (!role) {
+          res.status(400).json({ error: 'Rol no encontrado en el sistema' });
+          return;
+        }
+
+        data = { ...data, roleId: role.id };
+      }
+
       const result = await authService.register(data, sendEmail);
 
       res.status(201).json({

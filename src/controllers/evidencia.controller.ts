@@ -18,6 +18,10 @@ export class EvidenciaController {
         res.status(400).json({ error: 'Archivo no proporcionado' });
         return;
       }
+      if (!comentario || comentario.trim().length === 0) {
+        res.status(400).json({ error: 'El comentario es obligatorio' });
+        return;
+      }
 
       const evidencia = await evidenciaService.subirEvidencia(accionId, file, req.user.userId, comentario);
       res.status(201).json({ message: 'Evidencia subida', evidencia });

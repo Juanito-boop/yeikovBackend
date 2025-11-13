@@ -10,8 +10,13 @@ export const registerSchema = z.object({
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   apellido: z.string().min(2, 'El apellido debe tener al menos 2 caracteres'),
-  roleId: z.uuid('Role ID inválido'),
-  schoolId: z.uuid('School ID inválido').optional()
+  roleId: z.uuid('Role ID inválido').optional(),
+  role: z.string().optional(),
+  schoolId: z.uuid('School ID inválido').optional(),
+  sendWelcomeEmail: z.boolean().optional()
+}).refine((data) => data.roleId || data.role, {
+  message: 'Debe proporcionar roleId o role',
+  path: ['roleId']
 });
 
 export const changePasswordSchema = z.object({
