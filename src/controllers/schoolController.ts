@@ -45,17 +45,25 @@ export class SchoolController {
    */
   static async createSchool(req: Request, res: Response): Promise<void> {
     try {
-      const { nombre } = req.body;
+      const { nombre, decano, emailDecano } = req.body;
 
       if (!nombre || nombre.trim() === '') {
         res.status(400).json({ error: 'El nombre de la facultad es requerido' });
         return;
       }
 
-      const school = await schoolService.createSchool(nombre.trim());
+      const school = await schoolService.createSchool(
+        nombre.trim(),
+        decano?.trim(),
+        emailDecano?.trim()
+      );
       res.status(201).json({
         message: 'Facultad creada exitosamente',
-        ...school,
+        id: school.id,
+        nombre: school.nombre,
+        direccion: school.direccion,
+        decano: school.decano,
+        emailDecano: school.emailDecano,
         cantidadDocentes: 0
       });
     } catch (error: any) {
@@ -70,14 +78,19 @@ export class SchoolController {
   static async updateSchool(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const { nombre } = req.body;
+      const { nombre, decano, emailDecano } = req.body;
 
       if (!nombre || nombre.trim() === '') {
         res.status(400).json({ error: 'El nombre de la facultad es requerido' });
         return;
       }
 
-      const school = await schoolService.updateSchool(id, nombre.trim());
+      const school = await schoolService.updateSchool(
+        id,
+        nombre.trim(),
+        decano?.trim(),
+        emailDecano?.trim()
+      );
       res.json({
         message: 'Facultad actualizada exitosamente',
         school

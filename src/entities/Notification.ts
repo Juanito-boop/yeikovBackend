@@ -4,6 +4,9 @@ import { User } from './User';
 export enum NotificationType {
   LOGIN = 'login',
   PLAN_ASIGNADO = 'plan_asignado',
+  PLAN_PENDIENTE = 'plan_pendiente',
+  PLAN_ACTIVO = 'plan_activo',
+  PLAN_RECHAZADO = 'plan_rechazado',
   EVIDENCIA_SUBIDA = 'evidencia_subida',
   COMENTARIO = 'comentario',
   GENERAL = 'general'

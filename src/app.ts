@@ -16,6 +16,7 @@ import accionRoutes from './routes/accion.routes';
 import evidenciaRoutes from './routes/evidencia.routes';
 import aprobacionRoutes from './routes/aprobacion.routes';
 import auditRoutes from './routes/audit.routes';
+import dashboardRoutes from './routes/dashboard.routes';
 
 dotenv.config();
 
@@ -37,6 +38,7 @@ app.use('/api/acciones', accionRoutes);
 app.use('/api/evidencias', evidenciaRoutes);
 app.use('/api/aprobaciones', aprobacionRoutes);
 app.use('/api/auditoria', auditRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 app.get('/api/health', (req: Request, res: Response) => {
   res.status(200).json({

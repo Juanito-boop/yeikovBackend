@@ -15,8 +15,12 @@ export class PlanMejora {
   @Column('text')
   descripcion: string;
 
-  @Column({ default: 'Borrador' })
-  estado: string; // Borrador, EnRevisión, Aprobado, EnEjecucion, Cerrado
+  @Column({ default: 'PendienteDecano' })
+  estado: string; // PendienteDecano, AprobadoDecano, RechazadoDecano, Activo, EnEjecucion, Cerrado
+
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'creado_por' })
+  creadoPor: User; // Director que creó el plan
 
   @ManyToOne(() => User, user => user.plans)
   @JoinColumn({ name: 'docente_id' })

@@ -7,13 +7,15 @@ import { LoginInput, RegisterInput, ChangePasswordInput } from '../schemas/auth.
 import { NotificationService } from './notification.service';
 import { NotificationType } from '../entities/Notification';
 import { createEmailTransporter, emailConfig } from '../config/email.config';
+import { AuditService } from './audit.service';
 
 export class AuthService {
   private userRepository = AppDataSource.getRepository(User);
   private loginHistoryRepository = AppDataSource.getRepository(LoginHistory);
   private notificationService = new NotificationService();
+  private auditService = new AuditService();
 
-  async register(data: RegisterInput, sendWelcomeEmail: boolean = false): Promise<{ user: User; token: string }> {
+  async register(data: RegisterInput, sendWelcomeEmail: boolean = false, creadorId?: string): Promise<{ user: User; token: string }> {
     const existingUser = await this.userRepository.findOne({
       where: { email: data.email }
     });
@@ -35,6 +37,20 @@ export class AuthService {
     });
 
     await this.userRepository.save(user);
+
+    // Registrar en auditoría si hay un creador
+    if (creadorId) {
+      const userWithRole = await this.userRepository.findOne({
+        where: { id: user.id },
+        relations: ['role']
+      });
+      await this.auditService.registrarCreacionUsuario(
+        user.id,
+        `${user.nombre} ${user.apellido}`,
+        userWithRole?.role?.nombre || 'N/A',
+        creadorId
+      );
+    }
 
     // Enviar email de bienvenida con contraseña temporal
     if (sendWelcomeEmail) {
@@ -142,13 +158,15 @@ export class AuthService {
 
     await this.recordLoginAttempt(user.id, ipAddress, userAgent, true);
 
-    await this.notificationService.create({
-      userId: user.id,
-      tipo: NotificationType.LOGIN,
-      mensaje: `Inicio de sesión exitoso desde IP: ${ipAddress || 'desconocida'}`,
-      asunto: 'Nuevo inicio de sesión',
-      enviarEmail: true
-    });
+    // Registrar en auditoría
+    await this.auditService.registrarLogin(
+      user.id,
+      `${user.nombre} ${user.apellido}`,
+      ipAddress,
+      userAgent
+    );
+
+    // No enviar email en cada login
 
     const token = this.generateToken(user);
 
@@ -237,5 +255,120 @@ export class AuthService {
     });
 
     return { message: 'Contraseña actualizada exitosamente' };
+  }
+
+  async updateUser(
+    userId: string,
+    data: {
+      nombre?: string;
+      apellido?: string;
+      email?: string;
+      roleId?: string;
+      schoolId?: string;
+    },
+    actualizadorId?: string
+  ): Promise<User> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['role', 'school']
+    });
+
+    if (!user) {
+      throw new Error('Usuario no encontrado');
+    }
+
+    // Si se está cambiando el email, verificar que no esté en uso
+    if (data.email && data.email !== user.email) {
+      const existingUser = await this.userRepository.findOne({
+        where: { email: data.email }
+      });
+
+      if (existingUser) {
+        throw new Error('El email ya está registrado');
+      }
+    }
+
+    // Construir descripción de cambios para auditoría
+    const cambios: string[] = [];
+    if (data.nombre !== undefined && data.nombre !== user.nombre) cambios.push('nombre');
+    if (data.apellido !== undefined && data.apellido !== user.apellido) cambios.push('apellido');
+    if (data.email !== undefined && data.email !== user.email) cambios.push('email');
+    if (data.roleId !== undefined && data.roleId !== user.roleId) cambios.push('rol');
+    if (data.schoolId !== undefined && data.schoolId !== user.schoolId) cambios.push('facultad');
+
+    // Actualizar campos
+    if (data.nombre !== undefined) user.nombre = data.nombre;
+    if (data.apellido !== undefined) user.apellido = data.apellido;
+    if (data.email !== undefined) user.email = data.email;
+    if (data.roleId !== undefined) user.roleId = data.roleId;
+    if (data.schoolId !== undefined) user.schoolId = data.schoolId;
+
+    await this.userRepository.save(user);
+
+    // Registrar en auditoría
+    if (actualizadorId && cambios.length > 0) {
+      await this.auditService.registrarActualizacionUsuario(
+        user.id,
+        `${user.nombre} ${user.apellido}`,
+        cambios.join(', '),
+        actualizadorId
+      );
+    }
+
+    // Recargar el usuario con relaciones
+    const updatedUser = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['role', 'school']
+    });
+
+    return updatedUser!;
+  }
+
+  async deactivateUser(userId: string, desactivadorId?: string): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      throw new Error('Usuario no encontrado');
+    }
+
+    user.activo = false;
+    await this.userRepository.save(user);
+
+    // Registrar en auditoría
+    if (desactivadorId) {
+      await this.auditService.registrarDesactivacionUsuario(
+        user.id,
+        `${user.nombre} ${user.apellido}`,
+        desactivadorId
+      );
+    }
+
+    // Notificar al usuario
+    await this.notificationService.create({
+      userId: user.id,
+      tipo: NotificationType.GENERAL,
+      mensaje: 'Tu cuenta ha sido desactivada',
+      asunto: 'Cuenta desactivada',
+      enviarEmail: true
+    });
+
+    return { message: 'Usuario desactivado exitosamente' };
+  }
+
+  async activateUser(userId: string): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      throw new Error('Usuario no encontrado');
+    }
+
+    user.activo = true;
+    await this.userRepository.save(user);
+
+    return { message: 'Usuario activado exitosamente' };
   }
 }

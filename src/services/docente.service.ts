@@ -9,13 +9,16 @@ export class DocenteService {
    * Retorna todos los usuarios con rol DOCENTE.
    * Si se pasa schoolId, filtra por facultad.
    */
-  async getAllDocentes(schoolId?: string): Promise<User[]> {
+  async getAllDocentes(schoolId?: string, includeInactive: boolean = false): Promise<User[]> {
     const query = this.userRepo
       .createQueryBuilder('user')
       .innerJoinAndSelect('user.role', 'role')
       .leftJoinAndSelect('user.school', 'school')
-      .where('role.nombre = :nombre', { nombre: RoleType.DOCENTE })
-      .andWhere('user.activo = :activo', { activo: true });
+      .where('role.nombre = :nombre', { nombre: RoleType.DOCENTE });
+
+    if (!includeInactive) {
+      query.andWhere('user.activo = :activo', { activo: true });
+    }
 
     if (schoolId) {
       query.andWhere('user.school_id = :schoolId', { schoolId });

@@ -8,8 +8,18 @@ export class PlanController {
   async crear(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { titulo, descripcion, docenteId, incidenciaId } = req.body;
-      const plan = await planService.crearPlan({ titulo, descripcion, docenteId, incidenciaId });
-      res.status(201).json({ message: 'Plan de mejora creado', plan });
+      if (!req.user) {
+        res.status(401).json({ error: 'No autenticado' });
+        return;
+      }
+      const plan = await planService.crearPlan({
+        titulo,
+        descripcion,
+        docenteId,
+        directorId: req.user.userId,
+        incidenciaId
+      });
+      res.status(201).json({ message: 'Plan de mejora creado y enviado al decano', plan });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -74,6 +84,33 @@ export class PlanController {
       res.status(200).json({ message: 'Plan cerrado', plan });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
+    }
+  }
+
+  async reenviarADecano(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      if (!req.user) {
+        res.status(401).json({ error: 'No autenticado' });
+        return;
+      }
+      const plan = await planService.reenviarPlanADecano(id, req.user.userId);
+      res.status(200).json({ message: 'Plan reenviado al decano para revisión', plan });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
+  async listarPlanesRechazados(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: 'No autenticado' });
+        return;
+      }
+      const planes = await planService.listarPlanesRechazadosPorDirector(req.user.userId);
+      res.status(200).json({ planes });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   }
 }

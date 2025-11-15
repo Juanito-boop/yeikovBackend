@@ -18,6 +18,8 @@ export class SchoolService {
       id: school.id,
       nombre: school.nombre,
       direccion: school.direccion,
+      decano: school.decano || null,
+      emailDecano: school.emailDecano || null,
       cantidadDocentes: school.users?.length || 0
     }));
   }
@@ -39,7 +41,7 @@ export class SchoolService {
   /**
    * Crea una nueva escuela / facultad.
    */
-  async createSchool(nombre: string): Promise<School> {
+  async createSchool(nombre: string, decano?: string, emailDecano?: string): Promise<School> {
     // Verificar si ya existe una escuela con ese nombre
     const existente = await this.schoolRepo.findOne({
       where: { nombre }
@@ -51,7 +53,9 @@ export class SchoolService {
 
     const school = this.schoolRepo.create({
       nombre,
-      direccion: 'Sin dirección' // Dirección por defecto
+      direccion: 'Sin dirección', // Dirección por defecto
+      decano: decano || null,
+      emailDecano: emailDecano || null
     });
     return this.schoolRepo.save(school);
   }
@@ -59,13 +63,19 @@ export class SchoolService {
   /**
    * Actualiza una escuela / facultad.
    */
-  async updateSchool(id: string, nombre: string): Promise<School> {
+  async updateSchool(id: string, nombre: string, decano?: string, emailDecano?: string): Promise<School> {
     const school = await this.getSchoolById(id);
     if (!school) {
       throw new Error('Facultad no encontrada');
     }
 
     school.nombre = nombre;
+    if (decano !== undefined) {
+      school.decano = decano || null;
+    }
+    if (emailDecano !== undefined) {
+      school.emailDecano = emailDecano || null;
+    }
     return this.schoolRepo.save(school);
   }
 

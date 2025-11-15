@@ -15,7 +15,7 @@ export class AuthController {
       const sendEmail = req.body.sendWelcomeEmail !== false; // Por defecto true
 
       // Si se envió 'role' como string, convertirlo a roleId
-      if (req.body.role && !data.roleId) {
+      if (req.body.role && typeof req.body.role === 'string' && !data.roleId) {
         const roleMap: Record<string, RoleType> = {
           'docente': RoleType.DOCENTE,
           'admin': RoleType.ADMIN,
@@ -40,7 +40,7 @@ export class AuthController {
         data = { ...data, roleId: role.id };
       }
 
-      const result = await authService.register(data, sendEmail);
+      const result = await authService.register(data, sendEmail, (req as AuthRequest).user?.userId);
 
       res.status(201).json({
         message: 'Usuario registrado exitosamente',
@@ -107,6 +107,69 @@ export class AuthController {
       const data = req.body;
       const result = await authService.changePassword(req.user.userId, data);
 
+      res.status(200).json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
+  async updateUser(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const data = req.body;
+
+      // Si se envió 'role' como string, convertirlo a roleId
+      if (req.body.role && typeof req.body.role === 'string' && !data.roleId) {
+        const roleMap: Record<string, RoleType> = {
+          'docente': RoleType.DOCENTE,
+          'admin': RoleType.ADMIN,
+          'administrador': RoleType.ADMIN,
+          'decano': RoleType.DECANO,
+          'director': RoleType.DIRECTOR,
+          'director_academico': RoleType.DIRECTOR
+        };
+
+        const roleName = roleMap[req.body.role.toLowerCase()];
+        if (roleName) {
+          const role = await roleRepository.findOne({ where: { nombre: roleName } });
+          if (role) {
+            data.roleId = role.id;
+          }
+        }
+      }
+
+      const user = await authService.updateUser(id, data, req.user?.userId);
+
+      res.status(200).json({
+        message: 'Usuario actualizado exitosamente',
+        user: {
+          id: user.id,
+          email: user.email,
+          nombre: user.nombre,
+          apellido: user.apellido,
+          role: user.role.nombre,
+          school: user.school
+        }
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
+  async deactivateUser(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const result = await authService.deactivateUser(id, req.user?.userId);
+      res.status(200).json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
+  async activateUser(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const result = await authService.activateUser(id);
       res.status(200).json(result);
     } catch (error: any) {
       res.status(400).json({ error: error.message });

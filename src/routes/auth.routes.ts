@@ -11,5 +11,8 @@ router.post('/register', validate(registerSchema), (req, res) => authController.
 router.post('/login', validate(loginSchema), (req, res) => authController.login(req, res));
 router.get('/profile', authenticate, (req, res) => authController.getProfile(req, res));
 router.post('/change-password', authenticate, validate(changePasswordSchema), (req, res) => authController.changePassword(req, res));
+router.put('/users/:id', authenticate, (req, res) => authController.updateUser(req, res));
+router.patch('/users/:id/deactivate', authenticate, (req, res) => authController.deactivateUser(req, res));
+router.patch('/users/:id/activate', authenticate, (req, res) => authController.activateUser(req, res));
 
 export default router;
