@@ -105,11 +105,21 @@ export class PlanService {
   }
 
   async listarPlanesPorDocente(docenteId: string): Promise<PlanMejora[]> {
-    // Solo mostrar planes activos al docente
-    return this.planRepo.find({
-      where: { docente: { id: docenteId }, estado: 'Activo' },
-      relations: ['docente', 'incidencia', 'acciones', 'acciones.evidencias', 'aprobaciones', 'creadoPor']
-    });
+    // Mostrar planes activos, en progreso, completados y rechazados al docente
+    return this.planRepo
+      .createQueryBuilder('plan')
+      .leftJoinAndSelect('plan.docente', 'docente')
+      .leftJoinAndSelect('plan.incidencia', 'incidencia')
+      .leftJoinAndSelect('plan.acciones', 'acciones')
+      .leftJoinAndSelect('acciones.evidencias', 'evidencias')
+      .leftJoinAndSelect('plan.aprobaciones', 'aprobaciones')
+      .leftJoinAndSelect('plan.creadoPor', 'creadoPor')
+      .where('docente.id = :docenteId', { docenteId })
+      .andWhere('plan.estado IN (:...estados)', {
+        estados: ['Activo', 'EnProgreso', 'Completado', 'RechazadoDocente', 'Cerrado', 'Borrador', 'Abierto']
+      })
+      .orderBy('plan.createdAt', 'DESC')
+      .getMany();
   }
 
   async listarPlanesPendientesDecano(decanoId: string): Promise<PlanMejora[]> {
@@ -288,7 +298,10 @@ export class PlanService {
   }
 
   async aprobarPlan(id: string, aprobadoPorId: string, aprobado: boolean, comentarios?: string): Promise<void> {
-    const plan = await this.planRepo.findOne({ where: { id } });
+    const plan = await this.planRepo.findOne({
+      where: { id },
+      relations: ['docente', 'creadoPor']
+    });
     const usuario = await this.userRepo.findOne({ where: { id: aprobadoPorId }, relations: ['role'] });
 
     if (!plan || !usuario) throw new Error('Datos inválidos');
@@ -302,13 +315,52 @@ export class PlanService {
     });
     await this.aprobacionRepo.save(registro);
 
-    // Cambiar estado si se aprueba en todos los niveles
-    if (aprobado && usuario.role.nombre === RoleType.DIRECTOR) {
-      plan.estado = 'Aprobado';
+    // Cambiar estado según el rol y la decisión
+    if (usuario.role.nombre === RoleType.DOCENTE) {
+      if (aprobado) {
+        plan.estado = 'EnProgreso'; // Docente acepta y comienza a trabajar
+        // Notificar al director que el docente aceptó el plan
+        if (plan.creadoPor) {
+          await this.notificationService.create({
+            userId: plan.creadoPor.id,
+            tipo: NotificationType.PLAN_ACTIVO,
+            asunto: 'Plan de Mejora Aceptado por Docente',
+            mensaje: `El docente ${plan.docente.nombre} ${plan.docente.apellido} ha aceptado el plan de mejora "${plan.titulo}" y comenzará a trabajar en él.`,
+            enviarEmail: true
+          });
+        }
+      } else {
+        plan.estado = 'RechazadoDocente'; // Docente rechaza el plan
+        // Notificar al director que el docente rechazó el plan
+        if (plan.creadoPor) {
+          await this.notificationService.create({
+            userId: plan.creadoPor.id,
+            tipo: NotificationType.PLAN_RECHAZADO,
+            asunto: 'Plan de Mejora Rechazado por Docente',
+            mensaje: `El docente ${plan.docente.nombre} ${plan.docente.apellido} ha rechazado el plan de mejora "${plan.titulo}".${comentarios ? ` Motivo: ${comentarios}` : ''}`,
+            enviarEmail: true
+          });
+        }
+      }
+    } else if (usuario.role.nombre === RoleType.DIRECTOR) {
+      if (aprobado) {
+        plan.estado = 'Aprobado';
+      } else {
+        plan.estado = 'Rechazado';
+      }
     } else if (!aprobado) {
       plan.estado = 'Rechazado';
     }
+
     await this.planRepo.save(plan);
+
+    // Registrar en auditoría
+    await this.auditService.registrarAprobacionPlan(
+      plan.id,
+      plan.titulo,
+      plan.estado,
+      usuario.id
+    );
   }
 
   async cerrarPlan(id: string): Promise<PlanMejora> {

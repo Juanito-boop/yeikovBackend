@@ -19,6 +19,9 @@ export class School {
   @Column({ type: 'varchar', nullable: true, name: 'email_decano' })
   emailDecano: string | null;
 
+  @Column({ type: 'simple-json', nullable: true })
+  departamentos: string[] | null;
+
   @OneToMany(() => User, user => user.school)
   users: User[];
 }
