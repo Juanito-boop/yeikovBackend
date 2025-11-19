@@ -87,6 +87,23 @@ export class PlanController {
     }
   }
 
+  async actualizar(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { titulo, descripcion, incidenciaId } = req.body;
+
+      const plan = await planService.actualizarPlan(id, {
+        titulo,
+        descripcion,
+        incidenciaId
+      });
+
+      res.status(200).json({ message: 'Plan actualizado exitosamente', plan });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
   async reenviarADecano(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { id } = req.params;

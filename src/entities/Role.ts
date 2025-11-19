@@ -16,7 +16,7 @@ export class Role {
   @Column({ unique: true, type: 'varchar', length: 50 })
   nombre: RoleType;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, type: 'text' })
   descripcion: string;
 
   @OneToMany(() => User, user => user.role)

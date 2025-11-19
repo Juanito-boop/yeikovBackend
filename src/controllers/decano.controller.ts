@@ -89,4 +89,32 @@ export class DecanoController {
       res.status(400).json({ error: error.message });
     }
   }
+
+  async listarPlanesFacultad(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: 'No autenticado' });
+        return;
+      }
+
+      const planes = await decanoService.listarPlanesDeFacultad(req.user.userId);
+      res.status(200).json({ planes });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  async listarDocentesFacultad(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: 'No autenticado' });
+        return;
+      }
+
+      const docentes = await decanoService.listarDocentesDeFacultad(req.user.userId);
+      res.status(200).json({ docentes });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  }
 }

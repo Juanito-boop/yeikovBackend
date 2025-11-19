@@ -156,4 +156,68 @@ export class DecanoService {
       },
     ];
   }
+
+  /**
+   * Obtiene todos los planes de la facultad del decano
+   */
+  async listarPlanesDeFacultad(userId: string) {
+    const decano = await this.userRepo.findOne({
+      where: { id: userId },
+      relations: ['school', 'role'],
+    });
+
+    if (!decano || decano.role.nombre !== RoleType.DECANO) {
+      throw new Error('Usuario no es decano');
+    }
+
+    if (!decano.school) {
+      throw new Error('Decano no tiene facultad asignada');
+    }
+
+    // Obtener todos los planes de docentes de la facultad del decano
+    return this.planRepo
+      .createQueryBuilder('plan')
+      .leftJoinAndSelect('plan.docente', 'docente')
+      .leftJoinAndSelect('docente.school', 'school')
+      .leftJoinAndSelect('plan.creadoPor', 'creadoPor')
+      .leftJoinAndSelect('plan.incidencia', 'incidencia')
+      .leftJoinAndSelect('plan.acciones', 'acciones')
+      .leftJoinAndSelect('plan.aprobaciones', 'aprobaciones')
+      .leftJoinAndSelect('aprobaciones.aprobadoPor', 'aprobadoPor')
+      .where('docente.schoolId = :schoolId', { schoolId: decano.school.id })
+      .orderBy('plan.createdAt', 'DESC')
+      .getMany();
+  }
+
+  /**
+   * Obtiene todos los docentes de la facultad del decano
+   */
+  async listarDocentesDeFacultad(userId: string) {
+    const decano = await this.userRepo.findOne({
+      where: { id: userId },
+      relations: ['school', 'role'],
+    });
+
+    if (!decano || decano.role.nombre !== RoleType.DECANO) {
+      throw new Error('Usuario no es decano');
+    }
+
+    if (!decano.school) {
+      throw new Error('Decano no tiene facultad asignada');
+    }
+
+    // Obtener todos los docentes de la facultad del decano
+    return this.userRepo.find({
+      where: {
+        role: { nombre: RoleType.DOCENTE },
+        schoolId: decano.school.id,
+        activo: true,
+      },
+      relations: ['school', 'role'],
+      order: {
+        apellido: 'ASC',
+        nombre: 'ASC',
+      },
+    });
+  }
 }

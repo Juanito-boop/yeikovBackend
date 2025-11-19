@@ -99,7 +99,7 @@ export class PlanService {
 
   async listarPlanes(): Promise<PlanMejora[]> {
     return this.planRepo.find({
-      relations: ['docente', 'docente.school', 'acciones', 'aprobaciones'],
+      relations: ['docente', 'docente.school', 'incidencia', 'acciones', 'aprobaciones'],
       order: { createdAt: 'DESC' }
     });
   }
@@ -368,5 +368,55 @@ export class PlanService {
     if (!plan) throw new Error('Plan no encontrado');
     plan.estado = 'Cerrado';
     return await this.planRepo.save(plan);
+  }
+
+  async actualizarPlan(id: string, data: {
+    titulo?: string;
+    descripcion?: string;
+    incidenciaId?: string;
+  }): Promise<PlanMejora> {
+    const plan = await this.planRepo.findOne({
+      where: { id },
+      relations: ['docente', 'docente.school', 'creadoPor', 'incidencia']
+    });
+
+    if (!plan) throw new Error('Plan no encontrado');
+
+    // Solo permitir actualizar si el plan no ha sido completado o cerrado
+    if (plan.estado === 'Cerrado' || plan.estado === 'Completado') {
+      throw new Error('No se puede actualizar un plan cerrado o completado');
+    }
+
+    // Actualizar campos
+    if (data.titulo !== undefined) {
+      plan.titulo = data.titulo;
+    }
+    if (data.descripcion !== undefined) {
+      plan.descripcion = data.descripcion;
+    }
+    if (data.incidenciaId !== undefined) {
+      if (data.incidenciaId) {
+        const incidencia = await this.incidenciaRepo.findOne({ where: { id: data.incidenciaId } });
+        if (!incidencia) throw new Error('Incidencia no encontrada');
+        plan.incidencia = incidencia;
+      } else {
+        plan.incidencia = null;
+      }
+    }
+
+    const updatedPlan = await this.planRepo.save(plan);
+
+    // Registrar en auditoría
+    await this.auditService.registrarAccion({
+      entidad: 'Plan',
+      entidadId: plan.id,
+      accion: 'UPDATE',
+      descripcion: `Plan actualizado: ${plan.titulo}`,
+      entidadAfectada: plan.titulo,
+      usuarioId: plan.creadoPor.id,
+      datosNuevos: { titulo: plan.titulo, descripcion: plan.descripcion }
+    });
+
+    return updatedPlan;
   }
 }
